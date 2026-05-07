@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Dashboard — TaskFlow</title>
+  <link rel="stylesheet" href="assets/css/design-system.css">
+  <style>
+    .dashboard-hero { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:18px; align-items:end; margin-bottom:22px; padding:24px; border-radius:var(--radius-lg); background:linear-gradient(135deg,rgba(34,211,238,0.12),rgba(255,79,216,0.12),rgba(57,255,136,0.08)); border:1px solid var(--glass-border); box-shadow:var(--shadow-card); }
+    .dashboard-hero h2 { margin-bottom:8px; }
+    .hero-pill { background:#070b14; border:1px solid var(--glass-border); border-radius:var(--radius-full); padding:10px 14px; font-size:0.82rem; font-weight:800; color:var(--primary-light); box-shadow:0 0 22px rgba(34,211,238,0.12); }
+    .dash-grid { display:grid; grid-template-columns:minmax(320px,0.85fr) minmax(0,1.15fr); gap:20px; margin-top:22px; }
+    .card { background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-card); }
+    .card-title { font-family:'Outfit',sans-serif; font-size:1rem; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px; color:var(--text-primary); }
+    .stat-icon { display:inline-flex; align-items:center; justify-content:center; min-width:48px; height:26px; border-radius:999px; padding:0 10px; background:rgba(34,211,238,0.08); border:1px solid var(--glass-border); color:var(--primary-light); font-size:0.68rem; font-weight:900; letter-spacing:0.08em; margin-bottom:14px; }
+    .task-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid rgba(103,232,249,0.10); }
+    .task-row:last-child { border-bottom:none; }
+    .task-row-info { flex:1; min-width:0; }
+    .task-row-title { font-size:0.9rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .task-row-meta  { font-size:0.75rem; color:var(--text-muted); margin-top:2px; }
+    .task-row-badges { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap; }
+    .overdue-tag { background:rgba(255,59,107,0.14); color:#ff8dae; border:1px solid rgba(255,59,107,0.34); border-radius:6px; font-size:0.68rem; padding:2px 7px; font-weight:700; }
+    .project-row { display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid rgba(103,232,249,0.10); }
+    .project-row:last-child { border-bottom:none; }
+    .project-row-info { flex:1; min-width:0; }
+    .project-row-name { font-size:0.9rem; font-weight:800; margin-bottom:6px; }
+    .donut-wrap { display:flex; align-items:center; justify-content:center; gap:24px; min-height:210px; }
+    .donut { width:142px; height:142px; flex-shrink:0; }
+    .donut-legend { display:flex; flex-direction:column; gap:8px; }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:0.8rem; }
+    .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .stat-card.teal::after { background:#22d3ee; }
+    .stat-card.blue::after { background:#38bdf8; }
+    .stat-card.gold::after { background:#facc15; }
+    .stat-card.green::after { background:#39ff88; }
+    .stat-card.red::after { background:#ff3b6b; }
+    .stat-card.coral::after { background:#ff7a45; }
+    .stat-card.purple::after { background:#a78bfa; }
+    .stat-card.gray::after { background:#94a3b8; }
+    .stat-card.teal { background:linear-gradient(180deg,#0b0f19,rgba(34,211,238,0.08)); }
+    .stat-card.blue { background:linear-gradient(180deg,#0b0f19,rgba(56,189,248,0.09)); }
+    .stat-card.gold { background:linear-gradient(180deg,#0b0f19,rgba(250,204,21,0.10)); }
+    .stat-card.green { background:linear-gradient(180deg,#0b0f19,rgba(57,255,136,0.09)); }
+    .stat-card.red { background:linear-gradient(180deg,#0b0f19,rgba(255,59,107,0.08)); }
+    .stat-card.coral { background:linear-gradient(180deg,#0b0f19,rgba(255,122,69,0.10)); }
+    .stat-card.purple { background:linear-gradient(180deg,#0b0f19,rgba(167,139,250,0.09)); }
+    .stat-card.gray { background:linear-gradient(180deg,#0b0f19,rgba(148,163,184,0.08)); }
+    @media(max-width:980px) { .dash-grid,.dashboard-hero{grid-template-columns:1fr;} .hero-pill{width:max-content;} }
+    @media(max-width:700px) { .task-row{grid-template-columns:auto minmax(0,1fr);} .task-row-badges{grid-column:2; justify-content:flex-start;} .donut-wrap{flex-direction:column;} }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div class="main-content">
+    <header class="topbar">
+      <span class="topbar-title" id="page-greeting">Good morning</span>
+      <div class="topbar-actions">
+        <span id="topbar-date" class="text-sm text-muted"></span>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="dashboard-hero">
+        <div>
+        <h2>Dashboard Overview</h2>
+        <p>Track your projects, tasks, and team activity at a glance.</p>
+        </div>
+        <span class="hero-pill" id="dashboard-health">Loading workload...</span>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="loading-center"><div class="spinner"></div></div>
+      </div>
+      <div class="dash-grid" id="dash-grid" style="display:none">
+        <div class="card">
+          <div class="card-title">Task Status Breakdown</div>
+          <div class="donut-wrap">
+            <svg class="donut" id="donut-svg" viewBox="0 0 36 36"></svg>
+            <div class="donut-legend" id="donut-legend"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Project Progress</div>
+          <div id="project-progress-list"><div class="loading-center"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title">Recent Tasks</div>
+          <div id="recent-tasks-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+  initNav('dashboard');
+  const user = getUser();
+  const h = new Date().getHours();
+  const greet = h<12?'Good morning':h<18?'Good afternoon':'Good evening';
+  document.getElementById('page-greeting').textContent = `${greet}, ${user?.name?.split(' ')[0]}`;
+  document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+  async function loadDashboard() {
+    try {
+      const data = await API.dashboard.stats();
+      renderStats(data);
+      renderHealth(data);
+      renderDonut(data);
+      renderProjectProgress(data.projectStats || []);
+      renderRecentTasks(data.recentTasks || []);
+      document.getElementById('dash-grid').style.display = '';
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  function renderStats(d) {
+    const cards = [
+      { code:'ALL', value:d.total,       label:'Visible Tasks',   cls:'teal' },
+      { code:'MINE', value:d.myTasks,    label:'Assigned To Me',  cls:'coral' },
+      { code:'TODO', value:d.todo,       label:'To Do',           cls:'gray' },
+      { code:'RUN', value:d.in_progress, label:'In Progress',     cls:'blue' },
+      { code:'REV', value:d.review,      label:'In Review',       cls:'gold' },
+      { code:'DONE', value:d.done,       label:'Completed',       cls:'green' },
+      { code:'LATE', value:d.overdue,    label:'Overdue',         cls:'red' },
+      { code:'PROJ', value:d.projects,   label:'Projects',        cls:'purple' },
+    ];
+    document.getElementById('stats-grid').innerHTML = cards.map(c=>`
+      <div class="stat-card ${c.cls}">
+        <div class="stat-icon">${c.code}</div>
+        <div class="stat-value" data-target="${c.value}">0</div>
+        <div class="stat-label">${c.label}</div>
+      </div>`).join('');
+    document.querySelectorAll('.stat-value[data-target]').forEach(el=>{
+      const target = +el.dataset.target; let n=0;
+      const step = Math.max(1,Math.ceil(target/30));
+      const t = setInterval(()=>{ n=Math.min(n+step,target); el.textContent=n; if(n>=target)clearInterval(t); },40);
+    });
+  }
+
+  function renderHealth(d) {
+    const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
+    const open = Math.max(0, d.total - d.done);
+    document.getElementById('dashboard-health').textContent = `${pct}% complete · ${open} open · ${d.myTasks} assigned`;
+  }
+
+  function renderDonut(d) {
+    const segments = [
+      { label:'To Do',      value:d.todo,        color:'#94a3b8' },
+      { label:'In Progress',value:d.in_progress, color:'#22d3ee' },
+      { label:'In Review',  value:d.review,      color:'#facc15' },
+      { label:'Done',       value:d.done,        color:'#39ff88' },
+    ];
+    const total = segments.reduce((s,x)=>s+x.value,0)||1;
+    let offset=25; const R=15.915; const r=16; const cx=18; const cy=18;
+    const paths = segments.map(seg=>{
+      const pct = seg.value/total*100;
+      const path = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${seg.color}" stroke-width="3.5" stroke-dasharray="${pct} ${100-pct}" stroke-dashoffset="${100-offset+25}" style="transition:stroke-dasharray 0.8s ease"/>`;
+      offset += pct; return path;
+    });
+    document.getElementById('donut-svg').innerHTML = `<circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(103,232,249,0.12)" stroke-width="3.5"/>` + paths.join('') + `<text x="18" y="19" text-anchor="middle" font-size="5" font-family="Outfit" font-weight="800" fill="#f8fafc">${d.total}</text><text x="18" y="23.5" text-anchor="middle" font-size="2.8" fill="#94a3b8">tasks</text>`;
+    document.getElementById('donut-legend').innerHTML = segments.map(s=>`<div class="legend-item"><div class="legend-dot" style="background:${s.color}"></div><span style="color:var(--text-secondary)">${s.label}</span><strong style="margin-left:auto">${s.value}</strong></div>`).join('');
+  }
+
+  function renderProjectProgress(list) {
+    const el = document.getElementById('project-progress-list');
+    if (!list.length) { el.innerHTML='<div class="empty-state"><div class="empty-title">No projects yet</div></div>'; return; }
+    el.innerHTML = list.map(p=>{
+      const pct = p.task_count ? Math.round((p.done_count/p.task_count)*100) : 0;
+      return `<div class="project-row">
+        <div class="project-row-info">
+          <div class="project-row-name">${p.name}</div>
+          <div class="flex items-center gap-3 mb-2">
+            <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <span class="text-xs text-muted">${pct}%</span>
+          </div>
+          <span class="text-xs text-muted">${p.done_count||0}/${p.task_count||0} tasks done</span>
+        </div>
+        ${badge(p.status,p.status)}
+      </div>`;
+    }).join('');
+  }
+
+  function renderRecentTasks(list) {
+    const el = document.getElementById('recent-tasks-list');
+    if (!list.length) { el.innerHTML='<div class="empty-state"><div class="empty-title">No tasks yet</div></div>'; return; }
+    el.innerHTML = list.map(t=>`
+      <div class="task-row">
+        ${avatar(t.assignee_name||'?', t.assignee_color,'avatar-sm')}
+        <div class="task-row-info">
+          <div class="task-row-title">${t.title}</div>
+          <div class="task-row-meta">${t.project_name||''} · ${formatDate(t.due_date)}</div>
+        </div>
+        <div class="task-row-badges">
+          ${badge(t.status,t.status)} ${badge(t.priority,t.priority)}
+          ${isOverdue(t.due_date)&&t.status!=='done'?'<span class="overdue-tag">Overdue</span>':''}
+        </div>
+      </div>`).join('');
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>

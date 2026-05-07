@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Tasks — TaskFlow</title>
+  <link rel="stylesheet" href="assets/css/design-system.css">
+  <style>
+    .task-summary { display:grid; grid-template-columns:repeat(4,minmax(140px,1fr)); gap:14px; margin-bottom:18px; }
+    .summary-tile { background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:var(--radius-lg); padding:16px; box-shadow:var(--shadow-card); }
+    .summary-label { color:var(--text-muted); font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; }
+    .summary-value { font-family:'Outfit',sans-serif; font-size:1.7rem; font-weight:800; line-height:1; margin-top:8px; }
+    .summary-tile.todo { border-top:4px solid #94a3b8; background:linear-gradient(180deg,#0b0f19,rgba(148,163,184,0.08)); }
+    .summary-tile.in_progress { border-top:4px solid #22d3ee; background:linear-gradient(180deg,#0b0f19,rgba(34,211,238,0.10)); }
+    .summary-tile.review { border-top:4px solid #facc15; background:linear-gradient(180deg,#0b0f19,rgba(250,204,21,0.10)); }
+    .summary-tile.done { border-top:4px solid #39ff88; background:linear-gradient(180deg,#0b0f19,rgba(57,255,136,0.10)); }
+    .board-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+    .board { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:start; }
+    .column { background:rgba(11,15,25,0.82); border:1px solid var(--glass-border); border-radius:var(--radius-lg); padding:16px; min-height:400px; box-shadow:var(--shadow-card); }
+    .column-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid rgba(103,232,249,0.10); }
+    .column-title { font-family:'Outfit',sans-serif; font-size:0.9rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .column-count { background:rgba(34,211,238,0.12); color:var(--primary-light); border-radius:var(--radius-full); font-size:0.72rem; font-weight:800; padding:2px 8px; }
+    .task-card { background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:var(--radius-md); padding:14px; margin-bottom:10px; cursor:grab; transition:var(--transition); box-shadow:0 8px 18px rgba(28,49,43,0.07); }
+    .task-card:hover { border-color:rgba(34,211,238,0.42); box-shadow:var(--shadow-glow); transform:translateY(-2px); }
+    .task-card.dragging { opacity:0.5; cursor:grabbing; }
+    .column.drag-over { background:rgba(34,211,238,0.08); border-color:rgba(34,211,238,0.42); }
+    .task-title { font-size:0.875rem; font-weight:600; margin-bottom:8px; }
+    .task-desc { font-size:0.78rem; color:var(--text-muted); margin-bottom:10px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .task-footer { display:flex; align-items:center; justify-content:space-between; margin-top:8px; }
+    .task-due { font-size:0.72rem; color:var(--text-muted); }
+    .task-due.overdue { color:#ff8dae; }
+    .overdue-dot { width:6px; height:6px; background:#ff3b6b; border-radius:50%; display:inline-block; margin-right:4px; }
+    .prio-bar { width:3px; border-radius:2px; position:absolute; left:0; top:8px; bottom:8px; }
+    .task-card { position:relative; padding-left:18px; }
+    .prio-low { background:var(--emerald); } .prio-medium { background:var(--primary); } .prio-high { background:var(--amber); } .prio-urgent { background:var(--red); }
+    @media(max-width:1100px){.board{grid-template-columns:repeat(2,1fr)} .task-summary{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:680px){.board,.task-summary{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div class="main-content">
+    <header class="topbar">
+      <span class="topbar-title">My Tasks</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openModal('task-modal');resetTaskForm()">+ New Task</button>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="board-toolbar">
+        <select id="project-filter" class="input" style="width:220px" onchange="loadTasks()">
+          <option value="">Assigned to me</option>
+        </select>
+        <select id="priority-filter" class="input" style="width:160px" onchange="filterTasks()">
+          <option value="">All Priorities</option>
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <input id="search-tasks" class="input" style="width:200px" placeholder="Search tasks" oninput="filterTasks()">
+      </div>
+      <div class="task-summary" id="task-summary"></div>
+      <div class="board" id="kanban-board">
+        <div class="loading-center" style="grid-column:1/-1"><div class="spinner"></div></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Task Modal -->
+<div class="modal-overlay" id="task-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <span class="modal-title" id="task-modal-title">New Task</span>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="input-group"><label class="input-label">Title *</label><input id="task-title" class="input" placeholder="What needs to be done?"></div>
+      <div class="input-group"><label class="input-label">Description</label><textarea id="task-desc" class="input" rows="3" placeholder="Add more details…"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="input-group"><label class="input-label">Project *</label>
+          <select id="task-project" class="input"><option value="">Select project…</option></select>
+        </div>
+        <div class="input-group"><label class="input-label">Assignee</label>
+          <select id="task-assignee" class="input"><option value="">Unassigned</option></select>
+        </div>
+        <div class="input-group"><label class="input-label">Priority</label>
+          <select id="task-priority" class="input">
+            <option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="input-group"><label class="input-label">Status</label>
+          <select id="task-status" class="input">
+            <option value="todo">To Do</option><option value="in_progress">In Progress</option><option value="review">Review</option><option value="done">Done</option>
+          </select>
+        </div>
+        <div class="input-group" style="grid-column:1/-1"><label class="input-label">Due Date</label><input id="task-due" class="input" type="date"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('task-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-task-btn" onclick="saveTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+  initNav('tasks');
+  let allTasks=[], allProjects=[], projectMembers={}, editingTaskId=null;
+
+  const COLS = [
+    { status:'todo',        label:'To Do',       cls:'badge-todo' },
+    { status:'in_progress', label:'In Progress', cls:'badge-in_progress' },
+    { status:'review',      label:'In Review',   cls:'badge-review' },
+    { status:'done',        label:'Done',        cls:'badge-done' },
+  ];
+
+  async function init() {
+    const user = getUser();
+    try {
+      const pd = await API.projects.list();
+      allProjects = pd.projects||[];
+      const pSel = document.getElementById('project-filter');
+      const tSel = document.getElementById('task-project');
+      allProjects.forEach(p => {
+        pSel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+        tSel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+      });
+      await loadTasks();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  async function loadTasks() {
+    const projId = document.getElementById('project-filter').value;
+    try {
+      const d = await API.tasks.my();
+      allTasks = (d.tasks||[]).filter(t => !projId || String(t.project_id) === String(projId));
+      if(projId) await loadProjectMembers(projId);
+      filterTasks();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  async function loadProjectMembers(projId) {
+    if(projectMembers[projId]) return;
+    try {
+      const d = await API.projects.get(projId);
+      projectMembers[projId] = d.members||[];
+    } catch {}
+  }
+
+  function filterTasks() {
+    const prio = document.getElementById('priority-filter').value;
+    const q = document.getElementById('search-tasks').value.toLowerCase();
+    const filtered = allTasks.filter(t =>
+      (!prio || t.priority===prio) &&
+      (!q || t.title.toLowerCase().includes(q) || (t.description||'').toLowerCase().includes(q))
+    );
+    renderSummary(filtered);
+    renderBoard(filtered);
+  }
+
+  function renderSummary(tasks) {
+    document.getElementById('task-summary').innerHTML = COLS.map(col => `
+      <div class="summary-tile ${col.status}">
+        <div class="summary-label">${col.label}</div>
+        <div class="summary-value">${tasks.filter(t => t.status === col.status).length}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderBoard(tasks) {
+    const board = document.getElementById('kanban-board');
+    board.innerHTML = COLS.map(col => {
+      const colTasks = tasks.filter(t=>t.status===col.status);
+      return `<div class="column" data-status="${col.status}" ondragover="onDragOver(event)" ondrop="onDrop(event,this)">
+        <div class="column-header">
+          <span class="column-title">${col.label}</span>
+          <span class="column-count">${colTasks.length}</span>
+        </div>
+        <div class="column-tasks">
+          ${colTasks.map(renderCard).join('')}
+          ${colTasks.length===0?'<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.8rem">Drop tasks here</div>':''}
+        </div>
+      </div>`;
+    }).join('');
+    board.querySelectorAll('.task-card').forEach(card => {
+      card.addEventListener('dragstart', e => { e.dataTransfer.setData('taskId', card.dataset.id); card.classList.add('dragging'); });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    });
+  }
+
+  function renderCard(t) {
+    const od = isOverdue(t.due_date) && t.status!=='done';
+    return `<div class="task-card" draggable="true" data-id="${t.id}">
+      <div class="prio-bar prio-${t.priority}"></div>
+      <div class="task-title">${t.title}</div>
+      ${t.description?`<div class="task-desc">${t.description}</div>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        ${badge(t.priority,t.priority)}
+        <span class="text-xs text-muted" style="align-self:center">${t.project_name||''}</span>
+      </div>
+      <div class="task-footer">
+        <div class="flex items-center gap-2">
+          ${t.assignee_name ? avatar(t.assignee_name,t.assignee_color,'avatar-sm') : '<span class="text-xs text-muted">Unassigned</span>'}
+          ${t.assignee_name?`<span class="text-xs text-muted">${t.assignee_name}</span>`:''}
+        </div>
+        <div class="flex items-center gap-2">
+          ${od?'<span class="overdue-dot"></span>':''}
+          <span class="task-due ${od?'overdue':''}">${formatDate(t.due_date)}</span>
+          <button class="btn btn-ghost btn-sm" onclick="editTask(${t.id})">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="delTask(${t.id})">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function onDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+  function onDrop(e, col) {
+    e.preventDefault(); col.classList.remove('drag-over');
+    const id = e.dataTransfer.getData('taskId');
+    const status = col.dataset.status;
+    if(!id||!status) return;
+    API.tasks.update(id, {status}).then(()=>{ loadTasks(); showToast('Task moved','success'); }).catch(err=>showToast(err.message,'error'));
+  }
+  document.addEventListener('dragenter', e => { if(!e.target.closest('.column')) document.querySelectorAll('.column').forEach(c=>c.classList.remove('drag-over')); });
+
+  function resetTaskForm() { editingTaskId=null; document.getElementById('task-modal-title').textContent='New Task'; document.getElementById('save-task-btn').textContent='Create Task'; ['task-title','task-desc'].forEach(id=>document.getElementById(id).value=''); document.getElementById('task-priority').value='medium'; document.getElementById('task-status').value='todo'; document.getElementById('task-due').value=''; document.getElementById('task-assignee').innerHTML='<option value="">Unassigned</option>'; }
+
+  function editTask(id) {
+    const t = allTasks.find(x=>x.id===id); if(!t) return;
+    editingTaskId = id;
+    document.getElementById('task-modal-title').textContent = 'Edit Task';
+    document.getElementById('save-task-btn').textContent = 'Save Changes';
+    document.getElementById('task-title').value = t.title;
+    document.getElementById('task-desc').value = t.description||'';
+    document.getElementById('task-project').value = t.project_id;
+    document.getElementById('task-priority').value = t.priority;
+    document.getElementById('task-status').value = t.status;
+    document.getElementById('task-due').value = t.due_date||'';
+    loadAssignees(t.project_id, t.assignee_id);
+    openModal('task-modal');
+  }
+
+  document.getElementById('task-project').addEventListener('change', function(){ loadAssignees(this.value); });
+
+  async function loadAssignees(projId, selectedId) {
+    const sel = document.getElementById('task-assignee');
+    sel.innerHTML = '<option value="">Unassigned</option>';
+    if(!projId) return;
+    if(!projectMembers[projId]) await loadProjectMembers(projId);
+    (projectMembers[projId]||[]).forEach(m => { sel.innerHTML += `<option value="${m.id}" ${m.id==selectedId?'selected':''}>${m.name}</option>`; });
+  }
+
+  async function saveTask() {
+    const title = document.getElementById('task-title').value.trim();
+    const project_id = document.getElementById('task-project').value;
+    if(!title) { showToast('Title required','error'); return; }
+    if(!project_id&&!editingTaskId) { showToast('Select a project','error'); return; }
+    const body = { title, description:document.getElementById('task-desc').value, status:document.getElementById('task-status').value, priority:document.getElementById('task-priority').value, due_date:document.getElementById('task-due').value||null, assignee_id:document.getElementById('task-assignee').value||null };
+    if(!editingTaskId) body.project_id = project_id;
+    try {
+      if(editingTaskId) await API.tasks.update(editingTaskId, body);
+      else await API.tasks.create(body);
+      closeModal('task-modal'); showToast(editingTaskId?'Task updated':'Task created','success'); loadTasks();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  async function delTask(id) {
+    if(!confirm('Delete this task?')) return;
+    try { await API.tasks.delete(id); showToast('Task deleted','success'); loadTasks(); } catch(e) { showToast(e.message,'error'); }
+  }
+
+  initModals(); init();
+</script>
+</body>
+</html>

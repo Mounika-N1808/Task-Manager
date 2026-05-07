@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>TaskFlow - Sign In</title>
+  <meta name="description" content="Sign in or create a TaskFlow account.">
+  <link rel="stylesheet" href="assets/css/design-system.css">
+  <style>
+    body { min-height:100vh; }
+    .auth-shell { min-height:100vh; display:grid; grid-template-columns:minmax(0,1.05fr) minmax(420px,0.95fr); }
+    .brand-panel { display:flex; flex-direction:column; justify-content:space-between; padding:54px; background:linear-gradient(135deg,#030407,#06111f 44%,#17051d); color:#fff; position:relative; overflow:hidden; border-right:1px solid var(--glass-border); }
+    .brand-panel::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0)); pointer-events:none; }
+    .brand-mark { position:relative; z-index:1; display:flex; align-items:center; gap:14px; font-family:'Outfit',sans-serif; font-weight:800; font-size:1.25rem; }
+    .brand-icon { width:44px; height:44px; border-radius:14px; background:var(--grad-primary); color:#030407; display:flex; align-items:center; justify-content:center; border:1px solid rgba(103,232,249,0.42); box-shadow:0 0 24px rgba(34,211,238,0.30); }
+    .brand-copy { position:relative; z-index:1; max-width:620px; }
+    .brand-copy h1 { font-size:clamp(2.3rem,5vw,4.7rem); margin-bottom:18px; color:#fff; }
+    .brand-copy p { color:rgba(255,255,255,0.82); font-size:1.04rem; max-width:520px; }
+    .brand-tags { position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:12px; margin-top:34px; max-width:620px; }
+    .brand-tag { border:1px solid rgba(103,232,249,0.28); background:rgba(34,211,238,0.08); border-radius:999px; padding:10px 14px; backdrop-filter:blur(14px); color:rgba(248,250,252,0.88); font-weight:700; font-size:0.88rem; }
+    .auth-panel { display:flex; align-items:center; justify-content:center; padding:42px 28px; }
+    .auth-card { width:100%; max-width:470px; background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:18px; padding:30px; box-shadow:var(--shadow-card); }
+    .auth-card h2 { margin-bottom:6px; }
+    .auth-card > p { margin-bottom:24px; }
+    .auth-tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#050914; border:1px solid var(--glass-border); border-radius:12px; padding:5px; margin-bottom:22px; }
+    .auth-tab { border:none; border-radius:9px; padding:10px; background:transparent; color:var(--text-secondary); font-weight:800; cursor:pointer; transition:var(--transition); }
+    .auth-tab.active { background:#0f172a; color:var(--primary-light); box-shadow:0 0 18px rgba(34,211,238,0.14); }
+    .auth-form { display:flex; flex-direction:column; gap:15px; }
+    .auth-form.hidden { display:none; }
+    .form-row { display:grid; grid-template-columns:1fr; gap:15px; }
+    .btn-fill { width:100%; padding:14px; margin-top:2px; }
+    .error-msg { background:rgba(207,63,63,0.09); border:1px solid rgba(207,63,63,0.2); color:#a92e2e; border-radius:10px; padding:10px 13px; font-size:0.85rem; display:none; margin-bottom:15px; }
+    .error-msg.show { display:block; }
+    .success-msg { background:rgba(20,149,111,0.10); border:1px solid rgba(20,149,111,0.22); color:#0d7758; border-radius:10px; padding:10px 13px; font-size:0.85rem; display:none; margin-bottom:15px; }
+    .success-msg.show { display:block; }
+    @media(max-width:920px) {
+      .auth-shell { grid-template-columns:1fr; }
+      .brand-panel { padding:34px 24px; min-height:380px; }
+      .brand-tags { gap:8px; }
+      .auth-panel { padding:24px; align-items:flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="mesh-bg"></div>
+<main class="auth-shell">
+  <section class="brand-panel">
+    <div class="brand-mark">
+      <div class="brand-icon">TF</div>
+      <span>TaskFlow</span>
+    </div>
+    <div class="brand-copy">
+      <h1>Plan the week without losing the plot.</h1>
+      <p>TaskFlow gives teams a clear view of projects, ownership, deadlines, and progress from the first login.</p>
+      <div class="brand-tags">
+        <span class="brand-tag">Project planning</span>
+        <span class="brand-tag">Team ownership</span>
+        <span class="brand-tag">Deadline tracking</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h2 id="auth-title">Welcome back</h2>
+      <p id="auth-subtitle">Sign in to review your dashboard and active tasks.</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" type="button" onclick="switchTab('login')">Login</button>
+        <button class="auth-tab" id="tab-signup" type="button" onclick="switchTab('signup')">Register</button>
+      </div>
+
+      <div id="error-box" class="error-msg"></div>
+      <div id="success-box" class="success-msg"></div>
+
+      <form class="auth-form" id="login-form" onsubmit="handleLogin(event)">
+        <div class="input-group">
+          <label class="input-label" for="login-email">Email</label>
+          <input id="login-email" class="input" type="email" placeholder="you@company.com" required autocomplete="email">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="login-password">Password</label>
+          <input id="login-password" class="input" type="password" placeholder="Enter password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-fill" id="login-btn">Login</button>
+      </form>
+
+      <form class="auth-form hidden" id="signup-form" onsubmit="handleSignup(event)">
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label" for="signup-name">Full Name</label>
+            <input id="signup-name" class="input" type="text" placeholder="Your full name" required autocomplete="name">
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="signup-email">Work Email</label>
+            <input id="signup-email" class="input" type="email" placeholder="you@company.com" required autocomplete="email">
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="signup-password">Password</label>
+            <input id="signup-password" class="input" type="password" placeholder="At least 6 characters" required minlength="6" autocomplete="new-password">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-fill" id="signup-btn">Create Account</button>
+      </form>
+
+    </div>
+  </section>
+</main>
+<script src="assets/js/api.js"></script>
+<script>
+  if (getToken()) window.location.href = '/dashboard.html';
+
+  function switchTab(tab) {
+    const isLogin = tab === 'login';
+    document.getElementById('tab-login').classList.toggle('active', isLogin);
+    document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+    document.getElementById('login-form').classList.toggle('hidden', !isLogin);
+    document.getElementById('signup-form').classList.toggle('hidden', isLogin);
+    document.getElementById('auth-title').textContent = isLogin ? 'Welcome back' : 'Create your account';
+    document.getElementById('auth-subtitle').textContent = isLogin
+      ? 'Sign in to review your dashboard and active tasks.'
+      : 'Register a new user and start with a personal workspace.';
+    showError('');
+    showSuccess('');
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-box');
+    el.textContent = msg;
+    el.classList.toggle('show', !!msg);
+  }
+
+  function showSuccess(msg) {
+    const el = document.getElementById('success-box');
+    el.textContent = msg;
+    el.classList.toggle('show', !!msg);
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    showError('');
+    showSuccess('');
+    const btn = document.getElementById('login-btn');
+    btn.textContent = 'Logging in...';
+    btn.disabled = true;
+    try {
+      const { token, user } = await API.auth.login({
+        email: document.getElementById('login-email').value.trim(),
+        password: document.getElementById('login-password').value
+      });
+      setAuth(token, user);
+      window.location.href = '/dashboard.html';
+    } catch(err) {
+      showError(err.message);
+    } finally {
+      btn.textContent = 'Login';
+      btn.disabled = false;
+    }
+  }
+
+  async function handleSignup(e) {
+    e.preventDefault();
+    showError('');
+    showSuccess('');
+    const btn = document.getElementById('signup-btn');
+    btn.textContent = 'Creating account...';
+    btn.disabled = true;
+    try {
+      await API.auth.signup({
+        name: document.getElementById('signup-name').value.trim(),
+        email: document.getElementById('signup-email').value.trim(),
+        password: document.getElementById('signup-password').value
+      });
+      clearAuth();
+      document.getElementById('login-email').value = document.getElementById('signup-email').value.trim();
+      document.getElementById('login-password').value = '';
+      document.getElementById('signup-form').reset();
+      switchTab('login');
+      showSuccess('Account created. Please log in with your new credentials.');
+    } catch(err) {
+      showError(err.message);
+    } finally {
+      btn.textContent = 'Create Account';
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

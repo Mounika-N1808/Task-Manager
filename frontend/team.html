@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Team — TaskFlow</title>
+  <link rel="stylesheet" href="assets/css/design-system.css">
+  <style>
+    .team-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; margin-top:24px; }
+    .member-card { background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:var(--radius-lg); padding:24px; text-align:center; transition:var(--transition); box-shadow:var(--shadow-card); }
+    .member-card:hover { transform:translateY(-3px); border-color:rgba(34,211,238,0.42); box-shadow:var(--shadow-glow); }
+    .member-avatar { margin:0 auto 14px; width:60px; height:60px; font-size:1.4rem; }
+    .member-name { font-family:'Outfit',sans-serif; font-size:1.05rem; font-weight:700; margin-bottom:4px; }
+    .member-email { font-size:0.8rem; color:var(--text-muted); margin-bottom:12px; word-break:break-all; }
+    .member-actions { display:flex; gap:8px; justify-content:center; margin-top:14px; }
+    .member-joined { font-size:0.72rem; color:var(--text-muted); margin-top:8px; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div class="main-content">
+    <header class="topbar">
+      <span class="topbar-title">Team Management</span>
+      <div class="topbar-actions">
+        <input id="search-users" class="input" style="width:200px" placeholder="Search" oninput="filterUsers()">
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="mb-6">
+        <h2>Team Members</h2>
+        <p>Manage user roles and team access. Admin only.</p>
+      </div>
+      <div id="team-container">
+        <div class="loading-center"><div class="spinner"></div></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Role Modal -->
+<div class="modal-overlay" id="role-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <span class="modal-title">Change Role</span>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:16px">Select new role for <strong id="role-user-name"></strong>:</p>
+      <div class="input-group">
+        <label class="input-label">Role</label>
+        <select id="role-select" class="input">
+          <option value="admin">Admin — Full access</option>
+          <option value="member">Member — Limited access</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('role-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRole()">Update Role</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+  initNav('team');
+  const currentUser = getUser();
+  if(currentUser.role !== 'admin') { window.location.href='/dashboard.html'; }
+
+  let allUsers=[], editingUserId=null;
+
+  async function load() {
+    try {
+      const d = await API.users.list();
+      allUsers = d.users||[];
+      filterUsers();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  function filterUsers() {
+    const q = document.getElementById('search-users').value.toLowerCase();
+    const filtered = allUsers.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    render(filtered);
+  }
+
+  function render(users) {
+    const el = document.getElementById('team-container');
+    if(!users.length) { el.innerHTML='<div class="empty-state"><div class="empty-title">No users found</div></div>'; return; }
+    el.innerHTML = `<div class="team-grid">${users.map(u => `
+      <div class="member-card">
+        <div class="avatar member-avatar" style="background:${u.avatar_color||'#22d3ee'}">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+        <div class="member-name">${u.name}</div>
+        <div class="member-email">${u.email}</div>
+        ${badge(u.role,u.role)}
+        <div class="member-joined">Joined ${new Date(u.created_at).toLocaleDateString()}</div>
+        <div class="member-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openRoleModal(${u.id},'${u.name}','${u.role}')">Role</button>
+          ${u.id!==currentUser.id?`<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${u.name}')">Delete</button>`:''}
+        </div>
+      </div>`).join('')}</div>`;
+  }
+
+  function openRoleModal(id, name, role) {
+    editingUserId = id;
+    document.getElementById('role-user-name').textContent = name;
+    document.getElementById('role-select').value = role;
+    openModal('role-modal');
+  }
+
+  async function saveRole() {
+    const role = document.getElementById('role-select').value;
+    try {
+      await API.users.updateRole(editingUserId, role);
+      closeModal('role-modal'); showToast('Role updated','success'); load();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  async function deleteUser(id, name) {
+    if(!confirm(`Remove ${name} from the system?`)) return;
+    try { await API.users.delete(id); showToast('User removed','success'); load(); } catch(e) { showToast(e.message,'error'); }
+  }
+
+  initModals(); load();
+</script>
+</body>
+</html>
