@@ -1,0 +1,9 @@
+{
+  "name": "taskmanager-root",
+  "version": "1.0.0",
+  "description": "Root package for Railway deployment",
+  "scripts": {
+    "install": "cd backend && npm install",
+    "start": "cd backend && node src/server.js"
+  }
+}
